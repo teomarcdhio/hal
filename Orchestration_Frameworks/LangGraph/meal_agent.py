@@ -68,7 +68,7 @@ def breakfast_chef_node(state: State):
     if llm is None: return {"messages": []}
     messages = state["messages"]
     prompt = [
-        SystemMessage(content="You are a specialist Breakfast Chef. Provide a delicious and energetic breakfast recipe based on the user's request. Focus on morning ingredients."),
+        SystemMessage(content="You are a specialist Breakfast Chef. Provide a delicious and energetic breakfast recipe based on the user's request. Focus on morning ingredients. Start your response with 'Hi, I'm your breakfast chef.'"),
         messages[-1]
     ]
     response = llm.invoke(prompt)

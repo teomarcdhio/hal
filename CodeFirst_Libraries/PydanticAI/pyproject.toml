@@ -1,0 +1,13 @@
+[project]
+name = "pydantic-ai-agent"
+version = "0.1.0"
+description = "A simple PydanticAI agent"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "pydantic-ai",
+    "python-dotenv",
+    "nest_asyncio", 
+]
+
+[tool.uv]
