@@ -181,9 +181,10 @@ brew install gitleaks
 
 **Linux:**
 ```bash
-# Download latest release
-wget https://github.com/gitleaks/gitleaks/releases/download/v8.18.1/gitleaks_8.18.1_linux_x64.tar.gz
-tar -xzf gitleaks_8.18.1_linux_x64.tar.gz
+# Download latest release (replace vX.Y.Z with current version from releases page)
+# Visit https://github.com/gitleaks/gitleaks/releases for the latest version
+wget https://github.com/gitleaks/gitleaks/releases/download/vX.Y.Z/gitleaks_X.Y.Z_linux_x64.tar.gz
+tar -xzf gitleaks_X.Y.Z_linux_x64.tar.gz
 sudo mv gitleaks /usr/local/bin/
 ```
 
