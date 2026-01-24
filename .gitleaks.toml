@@ -1,0 +1,42 @@
+# Gitleaks Configuration File
+# This file extends the default Gitleaks rules with project-specific settings
+
+title = "Gitleaks Configuration for HAL Project"
+
+# Extend default Gitleaks rules
+# The default rules cover:
+# - API keys (AWS, Azure, Google Cloud, etc.)
+# - Authentication tokens (GitHub, GitLab, Slack, etc.)
+# - Private keys (RSA, SSH, PGP)
+# - Database credentials
+# - Passwords and secrets in various formats
+
+[extend]
+# Use default Gitleaks rules as base
+useDefault = true
+
+# Allowlist section for managing false positives
+# Add paths, commits, regexes, or stopwords to exclude from scanning
+
+[allowlist]
+# Example: Exclude test files with mock credentials
+# paths = [
+#   '''tests/fixtures/.*''',
+#   '''examples/.*'''
+# ]
+
+# Example: Exclude specific commits (e.g., initial test data setup)
+# commits = [
+#   '''abc123def456'''
+# ]
+
+# Example: Allowlist specific patterns that are false positives
+# regexes = [
+#   '''example-key-not-real'''
+# ]
+
+# Example: Exclude files by extension
+# stopwords = [
+#   '''mock''',
+#   '''test'''
+# ]
