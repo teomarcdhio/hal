@@ -18,7 +18,7 @@ composio = Composio(api_key=os.environ.get("COMPOSIO_API_KEY"), provider=OpenAIA
 externalUserId = "c3e00703-0478-4974-8873-bb6b6586f8bf"
 
 # Create an auth config for gmail from the dashboard or programmatically
-auth_config_id = os.environ.get("AUTH_CONFIG_ID")
+auth_config_id = "yd_sgte2344"
 connection_request = composio.connected_accounts.link(
     user_id=externalUserId,
     auth_config_id=auth_config_id,
