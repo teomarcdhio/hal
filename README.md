@@ -34,7 +34,16 @@ LlamaIndex: While known for RAG, it is now a top-tier agent framework for data-h
 
 Mem0: Provides a "long-term memory" layer for agents, allowing them to remember user preferences and past interactions across different sessions.
 
-5. Observability & Debugging
+5. Skills and tools
+Key Aspects of Agent Skills:
+Definition & Structure: A skill is a folder containing a SKILL.md file (metadata and instructions) and optional scripts or resources. The tool is the code that the skill might require to execute some actions
+Purpose: They provide "procedural knowledge" rather than general intelligence, enabling agents to execute specific workflows.
+Portability & Modularity: Skills are designed to work across different AI agent platforms, allowing for easy sharing and reusability.
+Example: A skill could be a set of instructions instructing an AI to create a summary of a document in a specific corporate template. 
+Agent Skills vs. Other AI Concepts:
+vs. MCP (Model Context Protocol): MCP is the "plumbing" (connecting to databases), while skills are the "expertise" (how to use that data).
+
+6. Observability & Debugging
 You cannot fix an agent if you don't know where its reasoning went wrong.
 
 LangSmith: Essential for tracing exactly what an agent "thought" at each step.

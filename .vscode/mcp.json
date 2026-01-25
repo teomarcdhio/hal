@@ -1,0 +1,14 @@
+{
+	"servers": {
+		"GmailMCPServer": {
+			"command": "uv",
+			"args": [
+				"run",
+				"main.py"
+			],
+			"cwd": "/home/matteo/Documents/Dev/Personal/hal/MCP_and_tools/GMailMCP",
+			"type": "stdio"
+		}
+	},
+	"inputs": []
+}
