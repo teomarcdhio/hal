@@ -56,7 +56,7 @@ def get_recent_emails(email_address: str) -> list[str]:
     """
     password = os.getenv("GMAIL_PASSWORD")
     if not password:
-        raise ValueError("GMAIL_PASSWORD not set in environment variables.")
+        raise ValueError("GMAIL_PASSWORD not set in environment variables")
     
     try:
         # Connect to Gmail IMAP server
