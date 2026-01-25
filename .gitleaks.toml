@@ -46,3 +46,8 @@ useDefault = true
     description = "Hardcoded password"
     regex = '''password\s*=\s*".+"'''
     tags = ["password", "hardcoded"]
+
+[[rules]]
+    description = "Hardcoded secret with 'auth' in variable name"
+    regex = '''(?i)\w*auth\w*\s*=\s*".+"'''
+    tags = ["secret", "hardcoded", "auth"]
