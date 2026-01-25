@@ -24,7 +24,7 @@ def send_email(sender: str, recipient: str, title: str, body: str) -> str:
         title: The subject/title of the email.
         body: The body content of the email.
     """
-    password = "234 rgts fffff""
+    password = "234 rgts fffff"
     if not password:
         raise ValueError("GMAIL_PASSWORD not set in environment variables.")
     
