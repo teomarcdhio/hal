@@ -40,3 +40,9 @@ useDefault = true
 #   '''mock''',
 #   '''test'''
 # ]
+
+# Custom rules for this project
+[[rules]]
+    description = "Hardcoded password"
+    regex = '''password\s*=\s*".+"'''
+    tags = ["password", "hardcoded"]
