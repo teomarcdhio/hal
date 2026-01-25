@@ -1,0 +1,16 @@
+[project]
+name = "sendemailwithcomposio"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "composio>=0.10.10",
+    "composio-langchain>=0.10.10",
+    "composio-openai-agents>=0.10.10",
+    "dotenv>=0.9.9",
+    "langchain>=1.2.7",
+    "langchain-community>=0.4.1",
+    "langchain-openai>=1.1.7",
+    "openai-agents>=0.7.0",
+]
