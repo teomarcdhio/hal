@@ -1,0 +1,322 @@
+import os
+from typing import Annotated, TypedDict, Literal
+
+from dotenv import load_dotenv
+from langchain_openai import ChatOpenAI
+from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage, AIMessage
+from langgraph.graph import StateGraph, START, END
+from langgraph.graph.message import add_messages
+
+# LlamaIndex imports
+from llama_index.core import VectorStoreIndex, SimpleDirectoryReader, Settings
+from llama_index.llms.openai import OpenAI
+
+# --- Configuration ---
+load_dotenv()
+
+if not os.environ.get("OPENAI_API_KEY"):
+    print("WARNING: OPENAI_API_KEY not found in environment variables.")
+
+# --- RAG Setup (LlamaIndex) ---
+rag_query_engine = None
+try:
+    # Set the LLM for LlamaIndex query engine to also use gpt-5-nano for speed/consistency
+    Settings.llm = OpenAI(model="gpt-5-nano", temperature=0.7)
+    
+    # Load documents from the local file 'recipes.txt'
+    # Use absolute path relative to this script for reliability
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    recipes_path = os.path.join(script_dir, "recipes.txt")
+    
+    if os.path.exists(recipes_path):
+        documents = SimpleDirectoryReader(input_files=[recipes_path]).load_data()
+        index = VectorStoreIndex.from_documents(documents)
+        rag_query_engine = index.as_query_engine()
+        print(f"LlamaIndex RAG initialized successfully with {recipes_path}")
+    else:
+        print(f"Warning: {recipes_path} not found. RAG functionality disabled.")
+except Exception as e:
+    print(f"Error initializing LlamaIndex RAG: {e}")
+
+# --- State Definition ---
+class State(TypedDict):
+    messages: Annotated[list[BaseMessage], add_messages]
+    active_chef: str # To track which chef is handling the request
+
+# --- LLM Setup ---
+try:
+    # gpt-5-nano for routing, general chat, and inspection
+    llm_nano = ChatOpenAI(
+        model="gpt-5-nano",
+        temperature=0.7,
+    )
+    
+    # gpt-5-mini for breakfast and lunch
+    llm_mini = ChatOpenAI(
+        model="gpt-5-mini",
+        temperature=0.7,
+    )
+    
+    # gpt-4.1-mini for dinner
+    llm_dinner = ChatOpenAI(
+        model="gpt-4.1-mini",
+        temperature=0.7,
+    )
+    
+except Exception as e:
+    print(f"Error initializing ChatOpenAI models: {e}")
+    llm_nano = None
+    llm_mini = None
+    llm_dinner = None
+
+# --- Node Definitions ---
+
+def router_node(state: State) -> Literal["breakfast_chef", "lunch_chef", "dinner_chef", "general_chat"]:
+    """
+    Acts as the Orchestrator. Analyzes the user's intent and routes to the appropriate chef.
+    """
+    if llm_nano is None:
+        return "general_chat"
+        
+    messages = state["messages"]
+    last_message = messages[-1]
+    
+    prompt = [
+        SystemMessage(content="""You are a routing assistant. Classify the user's request into one of the following categories:
+        - BREAKFAST: If the user is asking for a breakfast recipe.
+        - LUNCH: If the user is asking for a lunch recipe.
+        - DINNER: If the user is asking for a dinner recipe.
+        - OTHER: For any other request.
+        
+        Respond ONLY with the category name (BREAKFAST, LUNCH, DINNER, or OTHER)."""),
+        last_message
+    ]
+    response = llm_nano.invoke(prompt)
+    category = response.content.strip().upper()
+    print(f"Router classified the request as: {category}")
+    
+    if "BREAKFAST" in category:
+        return "breakfast_chef"
+    elif "LUNCH" in category:
+        return "lunch_chef"
+    elif "DINNER" in category:
+        return "dinner_chef"
+    else:
+        return "general_chat"
+
+# --- Helper ---
+def get_rag_context(messages: list[BaseMessage]) -> str:
+    """Retrieves relevant context from the RAG engine based on the last user message."""
+    context = ""
+    if rag_query_engine:
+        try:
+            # Find the last user message for query context
+            last_human_msg = next((m for m in reversed(messages) if isinstance(m, HumanMessage)), None)
+            if last_human_msg:
+                query_response = rag_query_engine.query(last_human_msg.content)
+                if query_response and str(query_response).strip():
+                    context = str(query_response)
+                    # print(f"RAG retrieved context: {context[:100]}...")
+        except Exception as e:
+            print(f"Error querying RAG engine: {e}")
+    return context
+
+def breakfast_chef_node(state: State):
+    if llm_mini is None: return {"messages": []}
+    messages = state["messages"]
+    
+    # Retrieve relevant context from RAG if available
+    context = get_rag_context(messages)
+
+    prompt_content = "You are a specialist Breakfast Chef. Provide a delicious and energetic breakfast recipe based on the user's request. Focus on morning ingredients."
+    if context:
+        prompt_content += f"\n\nIMPORTANT: Use the following INTERNAL RECIPES found in the database. You MUST recommend one of these recipes as your primary suggestion if they match the user's request. Do not make up a new recipe if a suitable one exists here:\n{context}"
+    else:
+        prompt_content += "\nNo internal recipes found. You can suggest a recipe from your general knowledge."
+
+    prompt = [
+        SystemMessage(content=prompt_content),
+    ] + messages # Pass full history so the chef sees the critique
+    
+    response = llm_mini.invoke(prompt)
+    return {"messages": [AIMessage(content=f"**Breakfast Chef:**\n{response.content}")], "active_chef": "breakfast_chef"}
+
+def lunch_chef_node(state: State):
+    if llm_mini is None: return {"messages": []}
+    messages = state["messages"]
+    
+    context = get_rag_context(messages)
+    
+    prompt_content = "You are a specialist Lunch Chef. Provide a balanced and quick lunch recipe based on the user's request. Focus on midday sustenance."
+    if context:
+        prompt_content += f"\n\nIMPORTANT: Use the following INTERNAL RECIPES found in the database. You MUST recommend one of these recipes as your primary suggestion if they match the user's request. Do not make up a new recipe if a suitable one exists here:\n{context}"
+    else:
+        prompt_content += "\nNo internal recipes found. You can suggest a recipe from your general knowledge."
+
+    prompt = [
+        SystemMessage(content=prompt_content),
+    ] + messages
+    
+    response = llm_mini.invoke(prompt)
+    return {"messages": [AIMessage(content=f"**Lunch Chef:**\n{response.content}")], "active_chef": "lunch_chef"}
+
+def dinner_chef_node(state: State):
+    if llm_dinner is None: return {"messages": []}
+    messages = state["messages"]
+    
+    context = get_rag_context(messages)
+    
+    prompt_content = "You are a specialist Dinner Chef. Provide a comforting and substantial dinner recipe based on the user's request. Focus on evening relaxation and flavor."
+    if context:
+        prompt_content += f"\n\nIMPORTANT: Use the following INTERNAL RECIPES found in the database. You MUST recommend one of these recipes as your primary suggestion if they match the user's request. Do not make up a new recipe if a suitable one exists here:\n{context}"
+    else:
+        prompt_content += "\nNo internal recipes found. You can suggest a recipe from your general knowledge."
+
+    prompt = [
+        SystemMessage(content=prompt_content),
+    ] + messages
+    
+    response = llm_dinner.invoke(prompt)
+    return {"messages": [AIMessage(content=f"**Dinner Chef:**\n{response.content}")], "active_chef": "dinner_chef"}
+
+def general_chat_node(state: State):
+    if llm_nano is None: return {"messages": []}
+    messages = state["messages"]
+    response = llm_nano.invoke(messages)
+    return {"messages": [response], "active_chef": "general_chat"}
+
+def inspector_node(state: State) -> Literal["breakfast_chef", "lunch_chef", "dinner_chef", "__end__"]:
+    """
+    Inspects the recipe for butter. If found, sends it back to the active chef.
+    """
+    if llm_nano is None: return END
+    
+    messages = state["messages"]
+    last_message = messages[-1]
+    active_chef = state.get("active_chef")
+    
+    if active_chef == "general_chat":
+        return END
+
+    # Check for butter using LLM
+    prompt = [
+        SystemMessage(content="You are a strict health inspector. Check the following recipe for the ingredient 'butter'. If it contains butter, respond with 'CONTAINS_BUTTER'. If it does not, respond with 'PASS'."),
+        last_message
+    ]
+    response = llm_nano.invoke(prompt)
+    result = response.content.strip().upper()
+    
+    if "CONTAINS_BUTTER" in result:
+        print("\n[Inspector]: Butter detected! Sending back for revision...")
+        return active_chef # Route back to the chef who created it
+    else:
+        print("\n[Inspector]: Recipe passed (no butter).")
+        return END
+
+def inspector_feedback_node(state: State):
+    # This node just adds the feedback message to the state before routing back
+    return {"messages": [HumanMessage(content="The inspector found butter in your recipe. Please rewrite the recipe WITHOUT using butter.")]}
+
+# --- Graph Construction ---
+graph_builder = StateGraph(State)
+
+# Add nodes
+graph_builder.add_node("breakfast_chef", breakfast_chef_node)
+graph_builder.add_node("lunch_chef", lunch_chef_node)
+graph_builder.add_node("dinner_chef", dinner_chef_node)
+graph_builder.add_node("general_chat", general_chat_node)
+graph_builder.add_node("inspector_feedback", inspector_feedback_node)
+
+# Add conditional edges from START
+graph_builder.add_conditional_edges(
+    START,
+    router_node,
+    {
+        "breakfast_chef": "breakfast_chef",
+        "lunch_chef": "lunch_chef",
+        "dinner_chef": "dinner_chef",
+        "general_chat": "general_chat"
+    }
+)
+
+# Define the routing logic for the inspector
+def inspector_router(state: State):
+    # We duplicate the logic here because conditional_edges expects a function that returns the next node key
+    # But we also need to add the feedback message if we loop back.
+    # So we'll use a dedicated node 'inspector_feedback' to add the message, then route to chef.
+    
+    # Actually, let's do the check inside a conditional edge function directly.
+    if llm_nano is None: return END
+    
+    messages = state["messages"]
+    last_message = messages[-1]
+    active_chef = state.get("active_chef")
+    
+    if active_chef == "general_chat":
+        return END
+
+    prompt = [
+        SystemMessage(content="You are a strict health inspector. Check the following recipe for the ingredient 'butter'. If it contains butter, respond with 'CONTAINS_BUTTER'. If it does not, respond with 'PASS'."),
+        last_message
+    ]
+    response = llm_nano.invoke(prompt)
+    result = response.content.strip().upper()
+    
+    if "CONTAINS_BUTTER" in result:
+        print("\n[Inspector]: Butter detected! Sending back for revision...")
+        return "inspector_feedback"
+    else:
+        print("\n[Inspector]: Recipe passed (no butter).")
+        return END
+
+# Chefs go to the inspector router
+graph_builder.add_conditional_edges("breakfast_chef", inspector_router, {"inspector_feedback": "inspector_feedback", END: END})
+graph_builder.add_conditional_edges("lunch_chef", inspector_router, {"inspector_feedback": "inspector_feedback", END: END})
+graph_builder.add_conditional_edges("dinner_chef", inspector_router, {"inspector_feedback": "inspector_feedback", END: END})
+
+# General chat goes to END
+graph_builder.add_edge("general_chat", END)
+
+# Inspector feedback routes back to the active chef
+def feedback_router(state: State):
+    return state["active_chef"]
+
+graph_builder.add_conditional_edges(
+    "inspector_feedback",
+    feedback_router,
+    {
+        "breakfast_chef": "breakfast_chef",
+        "lunch_chef": "lunch_chef",
+        "dinner_chef": "dinner_chef"
+    }
+)
+
+graph = graph_builder.compile()
+
+# --- Execution ---
+if __name__ == "__main__":
+    print("Starting No-Butter Meal Agent...")
+    print("Ask for a recipe (try asking for something with butter, like croissants or mashed potatoes)!")
+    
+    if not os.environ.get("OPENAI_API_KEY"):
+        print("Please set OPENAI_API_KEY environment variable.")
+
+    while True:
+        try:
+            user_input = input("\nUser: ")
+            if user_input.lower() in ["quit", "exit", "q"]:
+                print("Goodbye!")
+                break
+
+            for event in graph.stream({"messages": [HumanMessage(content=user_input)]}):
+                for key, value in event.items():
+                    if "messages" in value:
+                        for msg in value["messages"]:
+                            print(f"\n{msg.content}")
+                    
+        except KeyboardInterrupt:
+            print("\nGoodbye!")
+            break
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            break

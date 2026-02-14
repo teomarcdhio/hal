@@ -1,0 +1,19 @@
+[project]
+name = "langgraph-local-agent"
+version = "0.1.0"
+description = "A simple LangGraph service using a local Llama agent"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "langgraph",
+    "langchain",
+    "langchain-community",
+    "langchain-openai",
+    "python-dotenv",
+    "llama-index",
+    "chromadb>=1.5.0",
+    "llama-index-vector-stores-chroma>=0.4.1",
+]
+
+[tool.uv]
+# No specific uv settings needed for now, but section can exist

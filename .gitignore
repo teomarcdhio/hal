@@ -208,3 +208,7 @@ __marimo__/
 
 # UV
 uv.lock
+
+# Storage folder
+storage/
+chroma_db/
