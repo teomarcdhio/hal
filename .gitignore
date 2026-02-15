@@ -212,3 +212,4 @@ uv.lock
 # Storage folder
 storage/
 chroma_db/
+.mem0/
